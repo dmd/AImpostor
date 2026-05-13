@@ -1,6 +1,6 @@
 # AImpostor for macOS
 
-Refugee from Claude to ChatGPT because of (name your reason, there's lots right now in Spring 2026)?
+Switched from Claude to ChatGPT? (For whatever reason. Not judging.)
 
 Wish you could get that soothing Claude font and color scheme?
 
