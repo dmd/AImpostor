@@ -5,7 +5,6 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST_DIR="$HOME/Applications"
 BUILT_APP="$ROOT/dist/AImpostor-darwin-arm64/AImpostor.app"
 DEST_APP="$DEST_DIR/AImpostor.app"
-LEGACY_DEST_APP="$DEST_DIR/ChatGPT Font.app"
 
 if [[ ! -d "$ROOT/node_modules/@electron/packager" ]]; then
   echo "Dependencies are not installed yet. Run npm install from $ROOT first." >&2
@@ -13,7 +12,7 @@ if [[ ! -d "$ROOT/node_modules/@electron/packager" ]]; then
 fi
 
 cd "$ROOT"
-/usr/bin/env npm_config_cache=/private/tmp/codex-npm-cache ELECTRON_CACHE=/private/tmp/codex-electron-cache npm run package:mac
+/usr/bin/env npm_config_cache=/private/tmp/aimpostor-npm-cache ELECTRON_CACHE=/private/tmp/aimpostor-electron-cache npm run package:mac
 
 if [[ ! -d "$BUILT_APP" ]]; then
   echo "Could not find built app at $BUILT_APP" >&2
@@ -23,8 +22,5 @@ fi
 /bin/mkdir -p "$DEST_DIR"
 /bin/rm -rf "$DEST_APP"
 /bin/cp -R "$BUILT_APP" "$DEST_APP"
-if [[ -d "$LEGACY_DEST_APP" ]]; then
-  /bin/rm -rf "$LEGACY_DEST_APP"
-fi
 
 echo "Installed $DEST_APP"

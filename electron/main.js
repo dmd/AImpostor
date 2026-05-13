@@ -8,7 +8,6 @@ const CLAUDE_USER_FONT =
 const CLAUDE_ASSISTANT_FONT =
   "'Anthropic Serif', 'Claude Local Serif', Georgia, 'Arial Hebrew', 'Noto Sans Hebrew', 'Times New Roman', Times, 'Hiragino Sans', 'Yu Gothic', Meiryo, 'Noto Sans CJK JP', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans CJK KR', serif";
 const APP_NAME = "AImpostor";
-const LEGACY_APP_NAME = "ChatGPT Font";
 
 const DEFAULT_SETTINGS = {
   userFontFamily: CLAUDE_USER_FONT,
@@ -19,9 +18,6 @@ const DEFAULT_SETTINGS = {
   applyToCode: false,
   theme: "light"
 };
-
-const LEGACY_ASSISTANT_FONT = "Charter, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif";
-const LEGACY_ASSISTANT_FONT_WITH_ANTHROPIC = "'Anthropic Serif', 'Tiempos Text', Tiempos, 'Claude Local Serif', Charter, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif";
 
 let mainWindow = null;
 let settingsWindow = null;
@@ -87,10 +83,6 @@ function settingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
-function legacySettingsPath() {
-  return path.join(app.getPath("appData"), LEGACY_APP_NAME, "settings.json");
-}
-
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
@@ -109,13 +101,9 @@ function cleanTheme(value) {
 }
 
 function normalizeSettings(settings) {
-  const assistantFontFamily = [LEGACY_ASSISTANT_FONT, LEGACY_ASSISTANT_FONT_WITH_ANTHROPIC].includes(settings.assistantFontFamily)
-    ? DEFAULT_SETTINGS.assistantFontFamily
-    : settings.assistantFontFamily;
-
   return {
     userFontFamily: cleanFontFamily(settings.userFontFamily || settings.fontFamily, DEFAULT_SETTINGS.userFontFamily),
-    assistantFontFamily: cleanFontFamily(assistantFontFamily, DEFAULT_SETTINGS.assistantFontFamily),
+    assistantFontFamily: cleanFontFamily(settings.assistantFontFamily, DEFAULT_SETTINGS.assistantFontFamily),
     userFontSize: clampNumber(settings.userFontSize || settings.fontSize, 10, 32, DEFAULT_SETTINGS.userFontSize),
     assistantFontSize: clampNumber(settings.assistantFontSize || settings.fontSize, 10, 36, DEFAULT_SETTINGS.assistantFontSize),
     lineHeight: clampNumber(settings.lineHeight, 1.1, 2.4, DEFAULT_SETTINGS.lineHeight),
@@ -129,12 +117,7 @@ function readSettings() {
     const parsed = JSON.parse(fs.readFileSync(settingsPath(), "utf8"));
     return normalizeSettings({ ...DEFAULT_SETTINGS, ...parsed });
   } catch {
-    try {
-      const parsed = JSON.parse(fs.readFileSync(legacySettingsPath(), "utf8"));
-      return normalizeSettings({ ...DEFAULT_SETTINGS, ...parsed });
-    } catch {
-      return { ...DEFAULT_SETTINGS };
-    }
+    return { ...DEFAULT_SETTINGS };
   }
 }
 
