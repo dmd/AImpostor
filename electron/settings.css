@@ -1,0 +1,153 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f9f9f7;
+  --panel: #ffffff;
+  --text: #191919;
+  --muted: #77736c;
+  --line: #dedbd4;
+  --accent: #d97757;
+  --accent-strong: #c6613f;
+  --button-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #20201f;
+    --panel: #2c2c2a;
+    --text: #f9f9f7;
+    --muted: #c3c2b7;
+    --line: rgba(255, 255, 255, 0.12);
+    --accent: #d97757;
+    --accent-strong: #c6613f;
+    --button-text: #ffffff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
+
+.panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.font-group {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.assistant-group {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.field span,
+.check-row {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+select,
+input[type="text"],
+input[type="number"] {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  padding: 6px 8px;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.range-row {
+  display: grid;
+  grid-template-columns: 1fr 72px;
+  gap: 10px;
+  align-items: center;
+}
+
+.number {
+  text-align: right;
+}
+
+.check-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--button-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 7px 12px;
+}
+
+button:hover {
+  background: var(--accent-strong);
+}
+
+button.secondary {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--text);
+}
+
+button.secondary:hover {
+  border-color: var(--accent);
+  background: transparent;
+}
