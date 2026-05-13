@@ -2,7 +2,7 @@ const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
-const FONT_PATH = path.join(__dirname, "..", "extension", "fonts", "Newsreader-Variable.ttf");
+const FONT_PATH = path.join(__dirname, "..", "assets", "fonts", "Newsreader-Variable.ttf");
 const CLAUDE_USER_FONT =
   "'Anthropic Sans', system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 const CLAUDE_ASSISTANT_FONT =
