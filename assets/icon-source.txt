@@ -1,0 +1,7 @@
+ChatGPT logo source:
+https://commons.wikimedia.org/wiki/File:ChatGPT-Logo.svg
+Original file:
+https://upload.wikimedia.org/wikipedia/commons/e/ef/ChatGPT-Logo.svg
+
+The app icon recolors the SVG path to Anthropic clay #d97757.
+Wikimedia Commons marks the SVG as public domain due to simple geometry and notes possible trademark restrictions.
