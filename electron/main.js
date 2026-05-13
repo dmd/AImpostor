@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, nativeTheme, shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
@@ -126,6 +126,19 @@ function writeSettings(settings) {
   fs.mkdirSync(app.getPath("userData"), { recursive: true });
   fs.writeFileSync(settingsPath(), `${JSON.stringify(normalized, null, 2)}\n`);
   return normalized;
+}
+
+function applyNativeTheme(settings) {
+  const normalized = normalizeSettings(settings);
+  const theme = THEMES[normalized.theme];
+
+  nativeTheme.themeSource = normalized.theme;
+
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.setBackgroundColor(theme.page);
+    }
+  }
 }
 
 function getLocalSerifDataUrl() {
@@ -615,12 +628,15 @@ function scheduleThemeReapply() {
 }
 
 function createMainWindow() {
+  const theme = THEMES[readSettings().theme];
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 900,
     minWidth: 760,
     minHeight: 560,
     title: APP_NAME,
+    backgroundColor: theme.page,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -654,12 +670,15 @@ function createSettingsWindow() {
     return;
   }
 
+  const theme = THEMES[readSettings().theme];
+
   settingsWindow = new BrowserWindow({
     width: 460,
     height: 690,
     resizable: false,
     title: `${APP_NAME} Settings`,
     parent: mainWindow || undefined,
+    backgroundColor: theme.page,
     webPreferences: {
       preload: path.join(__dirname, "settings-preload.js"),
       contextIsolation: true,
@@ -713,7 +732,8 @@ function buildMenu() {
 app.setName(APP_NAME);
 
 app.whenReady().then(() => {
-  writeSettings(readSettings());
+  const settings = writeSettings(readSettings());
+  applyNativeTheme(settings);
   Menu.setApplicationMenu(buildMenu());
   createMainWindow();
 
@@ -734,6 +754,7 @@ ipcMain.handle("settings:get", () => readSettings());
 
 ipcMain.handle("settings:save", async (_event, patch) => {
   const saved = writeSettings({ ...readSettings(), ...patch });
+  applyNativeTheme(saved);
   await applyTypography();
   return saved;
 });
