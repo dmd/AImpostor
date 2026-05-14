@@ -641,6 +641,8 @@ ipcMain.handle("settings:reset", async () => {
   return saved;
 });
 
-ipcMain.handle("settings:open-chatgpt", () => {
-  focusMainWindow();
+ipcMain.handle("settings:close", () => {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.close();
+  }
 });

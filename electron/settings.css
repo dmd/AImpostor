@@ -151,3 +151,10 @@ button.secondary:hover {
   border-color: var(--accent);
   background: transparent;
 }
+
+button.small {
+  min-height: 28px;
+  align-self: center;
+  font-size: 12px;
+  padding: 4px 9px;
+}

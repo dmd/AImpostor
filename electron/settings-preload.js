@@ -5,5 +5,5 @@ contextBridge.exposeInMainWorld("chatgptFontSettings", {
   saveSettings: (patch) => ipcRenderer.invoke("settings:save", patch),
   saveSettingsSync: (patch) => ipcRenderer.sendSync("settings:save-sync", patch),
   resetSettings: () => ipcRenderer.invoke("settings:reset"),
-  openChatGPT: () => ipcRenderer.invoke("settings:open-chatgpt")
+  closeSettings: () => ipcRenderer.invoke("settings:close")
 });

@@ -17,7 +17,7 @@ const els = {
   theme: document.getElementById("theme"),
   applyToCode: document.getElementById("applyToCode"),
   globalShortcutEnabled: document.getElementById("globalShortcutEnabled"),
-  openChatGPT: document.getElementById("openChatGPT"),
+  closeSettings: document.getElementById("closeSettings"),
   reset: document.getElementById("reset")
 };
 
@@ -206,8 +206,9 @@ els.theme.addEventListener("change", () => {
   save({ theme: els.theme.value }, { immediate: true });
 });
 
-els.openChatGPT.addEventListener("click", () => {
-  window.chatgptFontSettings.openChatGPT();
+els.closeSettings.addEventListener("click", () => {
+  flushSaveSync();
+  window.chatgptFontSettings.closeSettings();
 });
 
 els.reset.addEventListener("click", async () => {
