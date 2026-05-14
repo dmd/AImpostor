@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, nativeTheme, shell } = require("electron");
+const { app, BrowserWindow, Menu, globalShortcut, ipcMain, nativeTheme, shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
@@ -8,6 +8,7 @@ const CLAUDE_USER_FONT =
 const CLAUDE_ASSISTANT_FONT =
   "'Anthropic Serif', 'Claude Local Serif', Georgia, 'Arial Hebrew', 'Noto Sans Hebrew', 'Times New Roman', Times, 'Hiragino Sans', 'Yu Gothic', Meiryo, 'Noto Sans CJK JP', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans CJK KR', serif";
 const APP_NAME = "AImpostor";
+const GLOBAL_SHORTCUT = "Alt+Space";
 
 const DEFAULT_SETTINGS = {
   userFontFamily: CLAUDE_USER_FONT,
@@ -16,6 +17,7 @@ const DEFAULT_SETTINGS = {
   assistantFontSize: 16,
   lineHeight: 1.7,
   applyToCode: false,
+  globalShortcutEnabled: true,
   theme: "light"
 };
 
@@ -108,6 +110,7 @@ function normalizeSettings(settings) {
     assistantFontSize: clampNumber(settings.assistantFontSize || settings.fontSize, 10, 36, DEFAULT_SETTINGS.assistantFontSize),
     lineHeight: clampNumber(settings.lineHeight, 1.1, 2.4, DEFAULT_SETTINGS.lineHeight),
     applyToCode: Boolean(settings.applyToCode),
+    globalShortcutEnabled: settings.globalShortcutEnabled !== false,
     theme: cleanTheme(settings.theme)
   };
 }
@@ -628,6 +631,11 @@ function scheduleThemeReapply() {
 }
 
 function createMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    focusMainWindow();
+    return;
+  }
+
   const theme = THEMES[readSettings().theme];
 
   mainWindow = new BrowserWindow({
@@ -661,7 +669,42 @@ function createMainWindow() {
     applyTypography();
     scheduleThemeReapply();
   });
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
   mainWindow.loadURL("https://chatgpt.com/");
+}
+
+function focusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createMainWindow();
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+
+  mainWindow.focus();
+}
+
+function applyGlobalShortcut(settings) {
+  const normalized = normalizeSettings(settings);
+  globalShortcut.unregister(GLOBAL_SHORTCUT);
+
+  if (!normalized.globalShortcutEnabled) {
+    return;
+  }
+
+  const registered = globalShortcut.register(GLOBAL_SHORTCUT, focusMainWindow);
+
+  if (!registered) {
+    console.warn(`Could not register global shortcut ${GLOBAL_SHORTCUT}`);
+  }
 }
 
 function createSettingsWindow() {
@@ -751,12 +794,19 @@ app.whenReady().then(() => {
   applyNativeTheme(settings);
   Menu.setApplicationMenu(buildMenu());
   createMainWindow();
+  applyGlobalShortcut(settings);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow();
+    } else {
+      focusMainWindow();
     }
   });
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on("window-all-closed", () => {
@@ -770,18 +820,19 @@ ipcMain.handle("settings:get", () => readSettings());
 ipcMain.handle("settings:save", async (_event, patch) => {
   const saved = writeSettings({ ...readSettings(), ...patch });
   applyNativeTheme(saved);
+  applyGlobalShortcut(saved);
   await applyTypography();
   return saved;
 });
 
 ipcMain.handle("settings:reset", async () => {
   const saved = writeSettings(DEFAULT_SETTINGS);
+  applyNativeTheme(saved);
+  applyGlobalShortcut(saved);
   await applyTypography();
   return saved;
 });
 
 ipcMain.handle("settings:open-chatgpt", () => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.focus();
-  }
+  focusMainWindow();
 });

@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   assistantFontSize: 16,
   lineHeight: 1.7,
   applyToCode: false,
+  globalShortcutEnabled: true,
   theme: "light"
 };
 
@@ -31,6 +32,7 @@ const els = {
   lineHeightOutput: document.getElementById("lineHeightOutput"),
   theme: document.getElementById("theme"),
   applyToCode: document.getElementById("applyToCode"),
+  globalShortcutEnabled: document.getElementById("globalShortcutEnabled"),
   openChatGPT: document.getElementById("openChatGPT"),
   reset: document.getElementById("reset")
 };
@@ -64,6 +66,7 @@ function normalize(settings) {
     assistantFontSize: clampNumber(settings.assistantFontSize || settings.fontSize, 10, 36, DEFAULT_SETTINGS.assistantFontSize),
     lineHeight: clampNumber(settings.lineHeight, 1.1, 2.4, DEFAULT_SETTINGS.lineHeight),
     applyToCode: Boolean(settings.applyToCode),
+    globalShortcutEnabled: settings.globalShortcutEnabled !== false,
     theme: ["light", "dark"].includes(settings.theme) ? settings.theme : DEFAULT_SETTINGS.theme
   };
 }
@@ -103,6 +106,7 @@ function render(settings) {
   els.lineHeightOutput.value = currentSettings.lineHeight.toFixed(2);
   els.theme.value = currentSettings.theme;
   els.applyToCode.checked = currentSettings.applyToCode;
+  els.globalShortcutEnabled.checked = currentSettings.globalShortcutEnabled;
   isHydrating = false;
 }
 
@@ -161,6 +165,10 @@ els.lineHeightNumber.addEventListener("input", () => {
 
 els.applyToCode.addEventListener("change", () => {
   save({ applyToCode: els.applyToCode.checked });
+});
+
+els.globalShortcutEnabled.addEventListener("change", () => {
+  save({ globalShortcutEnabled: els.globalShortcutEnabled.checked });
 });
 
 els.theme.addEventListener("change", () => {
