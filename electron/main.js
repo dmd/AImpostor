@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, nativeTheme, shell, screen } = require("electron");
+const { app, BrowserWindow, Menu, dialog, globalShortcut, ipcMain, nativeTheme, shell, screen } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const {
@@ -12,6 +12,7 @@ const {
 
 const FONT_PATH = path.join(__dirname, "..", "assets", "fonts", "Newsreader-Variable.ttf");
 const APP_NAME = "AImpostor";
+const APP_VERSION = "2026.05.14.04";
 
 let mainWindow = null;
 let settingsWindow = null;
@@ -757,11 +758,28 @@ function createSettingsWindow() {
   });
 }
 
+function showAboutWindow() {
+  if (process.platform === "darwin") {
+    app.showAboutPanel();
+    return;
+  }
+
+  dialog.showMessageBox(mainWindow || undefined, {
+    type: "info",
+    title: `About ${APP_NAME}`,
+    message: APP_NAME,
+    detail: `Version ${APP_VERSION}`,
+    buttons: ["OK"]
+  });
+}
+
 function buildMenu() {
   return Menu.buildFromTemplate([
     {
       label: app.name,
       submenu: [
+        { label: `About ${APP_NAME}`, click: showAboutWindow },
+        { type: "separator" },
         { label: "Settings...", accelerator: "CommandOrControl+,", click: createSettingsWindow },
         { type: "separator" },
         { role: "hide" },
@@ -810,6 +828,11 @@ function buildMenu() {
 }
 
 app.setName(APP_NAME);
+app.setAboutPanelOptions({
+  applicationName: APP_NAME,
+  applicationVersion: APP_VERSION,
+  version: APP_VERSION
+});
 
 app.whenReady().then(() => {
   const settings = writeSettings(readSettings());
