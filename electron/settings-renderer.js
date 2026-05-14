@@ -1,19 +1,3 @@
-const CLAUDE_USER_FONT =
-  "'Anthropic Sans', system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-const CLAUDE_ASSISTANT_FONT =
-  "'Anthropic Serif', 'Claude Local Serif', Georgia, 'Arial Hebrew', 'Noto Sans Hebrew', 'Times New Roman', Times, 'Hiragino Sans', 'Yu Gothic', Meiryo, 'Noto Sans CJK JP', 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans CJK KR', serif";
-
-const DEFAULT_SETTINGS = {
-  userFontFamily: CLAUDE_USER_FONT,
-  assistantFontFamily: CLAUDE_ASSISTANT_FONT,
-  userFontSize: 16,
-  assistantFontSize: 16,
-  lineHeight: 1.7,
-  applyToCode: false,
-  globalShortcutEnabled: true,
-  theme: "light"
-};
-
 const els = {
   userFontPreset: document.getElementById("userFontPreset"),
   userFontFamily: document.getElementById("userFontFamily"),
@@ -37,16 +21,14 @@ const els = {
   reset: document.getElementById("reset")
 };
 
-let currentSettings = { ...DEFAULT_SETTINGS };
-let isHydrating = false;
+const SAVE_DEBOUNCE_MS = 180;
 
-function clampNumber(value, min, max, fallback) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return fallback;
-  }
-  return Math.min(max, Math.max(min, numeric));
-}
+let currentSettings = null;
+let isHydrating = false;
+let pendingPatch = {};
+let saveTimer = null;
+let saveRequestId = 0;
+let isUnloading = false;
 
 function presetValues(select) {
   return Array.from(select.options)
@@ -56,19 +38,6 @@ function presetValues(select) {
 
 function isPreset(select, fontFamily) {
   return presetValues(select).includes(fontFamily);
-}
-
-function normalize(settings) {
-  return {
-    userFontFamily: String(settings.userFontFamily || settings.fontFamily || DEFAULT_SETTINGS.userFontFamily).trim() || DEFAULT_SETTINGS.userFontFamily,
-    assistantFontFamily: String(settings.assistantFontFamily || DEFAULT_SETTINGS.assistantFontFamily).trim() || DEFAULT_SETTINGS.assistantFontFamily,
-    userFontSize: clampNumber(settings.userFontSize || settings.fontSize, 10, 32, DEFAULT_SETTINGS.userFontSize),
-    assistantFontSize: clampNumber(settings.assistantFontSize || settings.fontSize, 10, 36, DEFAULT_SETTINGS.assistantFontSize),
-    lineHeight: clampNumber(settings.lineHeight, 1.1, 2.4, DEFAULT_SETTINGS.lineHeight),
-    applyToCode: Boolean(settings.applyToCode),
-    globalShortcutEnabled: settings.globalShortcutEnabled !== false,
-    theme: ["light", "dark"].includes(settings.theme) ? settings.theme : DEFAULT_SETTINGS.theme
-  };
 }
 
 function renderFontControl(prefix, fontFamily) {
@@ -95,7 +64,7 @@ function renderSizeControl(prefix, value) {
 
 function render(settings) {
   isHydrating = true;
-  currentSettings = normalize(settings);
+  currentSettings = settings;
 
   renderFontControl("user", currentSettings.userFontFamily);
   renderFontControl("assistant", currentSettings.assistantFontFamily);
@@ -110,13 +79,75 @@ function render(settings) {
   isHydrating = false;
 }
 
-async function save(patch) {
+function takePendingPatch() {
+  if (!Object.keys(pendingPatch).length) {
+    return null;
+  }
+
+  window.clearTimeout(saveTimer);
+  saveTimer = null;
+
+  const patch = pendingPatch;
+  pendingPatch = {};
+  return patch;
+}
+
+async function flushSave(options = {}) {
+  const patch = takePendingPatch();
+  if (!patch) {
+    return;
+  }
+
+  const requestId = ++saveRequestId;
+
+  try {
+    const saved = await window.chatgptFontSettings.saveSettings(patch);
+    if (options.render !== false && !isUnloading && requestId === saveRequestId) {
+      render(saved);
+    }
+  } catch (error) {
+    console.error("Could not save settings", error);
+  }
+}
+
+function flushSaveSync() {
+  const patch = takePendingPatch();
+  if (!patch) {
+    return;
+  }
+
+  saveRequestId += 1;
+
+  try {
+    if (typeof window.chatgptFontSettings.saveSettingsSync === "function") {
+      const saved = window.chatgptFontSettings.saveSettingsSync(patch);
+      if (!isUnloading) {
+        render(saved);
+      }
+    } else {
+      window.chatgptFontSettings.saveSettings(patch).catch((error) => {
+        console.error("Could not save settings", error);
+      });
+    }
+  } catch (error) {
+    console.error("Could not save settings", error);
+  }
+}
+
+function save(patch, options = {}) {
   if (isHydrating) {
     return;
   }
 
-  currentSettings = normalize({ ...currentSettings, ...patch });
-  render(await window.chatgptFontSettings.saveSettings(currentSettings));
+  pendingPatch = { ...pendingPatch, ...patch };
+
+  if (options.immediate) {
+    flushSave();
+    return;
+  }
+
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(flushSave, SAVE_DEBOUNCE_MS);
 }
 
 function bindFontControl(prefix, storageKey) {
@@ -164,15 +195,15 @@ els.lineHeightNumber.addEventListener("input", () => {
 });
 
 els.applyToCode.addEventListener("change", () => {
-  save({ applyToCode: els.applyToCode.checked });
+  save({ applyToCode: els.applyToCode.checked }, { immediate: true });
 });
 
 els.globalShortcutEnabled.addEventListener("change", () => {
-  save({ globalShortcutEnabled: els.globalShortcutEnabled.checked });
+  save({ globalShortcutEnabled: els.globalShortcutEnabled.checked }, { immediate: true });
 });
 
 els.theme.addEventListener("change", () => {
-  save({ theme: els.theme.value });
+  save({ theme: els.theme.value }, { immediate: true });
 });
 
 els.openChatGPT.addEventListener("click", () => {
@@ -180,7 +211,16 @@ els.openChatGPT.addEventListener("click", () => {
 });
 
 els.reset.addEventListener("click", async () => {
+  pendingPatch = {};
+  window.clearTimeout(saveTimer);
+  saveTimer = null;
+  saveRequestId += 1;
   render(await window.chatgptFontSettings.resetSettings());
+});
+
+window.addEventListener("beforeunload", () => {
+  isUnloading = true;
+  flushSaveSync();
 });
 
 window.chatgptFontSettings.getSettings().then(render);

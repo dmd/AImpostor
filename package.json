@@ -6,6 +6,9 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "check": "for f in electron/*.js test/*.js; do node --check \"$f\"; done",
+    "test": "node --test",
+    "verify": "npm run check && npm test",
     "package:mac": "electron-packager . \"AImpostor\" --platform=darwin --arch=arm64 --icon=assets/icon --out=dist --overwrite --ignore='^/dist($|/)' --ignore='^/debug($|/)' --ignore='^/app($|/)'"
   },
   "devDependencies": {
