@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   lineHeight: 1.7,
   applyToCode: false,
   globalShortcutEnabled: true,
+  globalShortcut: "Alt+Space",
   theme: "light"
 };
 
@@ -86,6 +87,37 @@ function cleanTheme(value) {
   return Object.hasOwn(THEMES, value) ? value : DEFAULT_SETTINGS.theme;
 }
 
+function cleanGlobalShortcut(value) {
+  const next = String(value || DEFAULT_SETTINGS.globalShortcut)
+    .replace(/[^A-Za-z0-9+]/g, "")
+    .trim();
+  return next || DEFAULT_SETTINGS.globalShortcut;
+}
+
+function normalizeWindowState(state) {
+  if (!state || typeof state !== "object") {
+    return null;
+  }
+
+  const bounds = state.bounds && typeof state.bounds === "object" ? state.bounds : {};
+  const width = clampNumber(bounds.width, 760, 3200, 1200);
+  const height = clampNumber(bounds.height, 560, 2400, 900);
+  const normalizedBounds = { width, height };
+
+  for (const key of ["x", "y"]) {
+    const numeric = Number(bounds[key]);
+    if (Number.isFinite(numeric)) {
+      normalizedBounds[key] = Math.round(numeric);
+    }
+  }
+
+  return {
+    bounds: normalizedBounds,
+    isMaximized: Boolean(state.isMaximized),
+    isFullScreen: Boolean(state.isFullScreen)
+  };
+}
+
 function normalizeSettings(settings = {}) {
   return {
     userFontFamily: cleanFontFamily(settings.userFontFamily || settings.fontFamily, DEFAULT_SETTINGS.userFontFamily),
@@ -95,6 +127,7 @@ function normalizeSettings(settings = {}) {
     lineHeight: clampNumber(settings.lineHeight, 1.1, 2.4, DEFAULT_SETTINGS.lineHeight),
     applyToCode: Boolean(settings.applyToCode),
     globalShortcutEnabled: settings.globalShortcutEnabled !== false,
+    globalShortcut: cleanGlobalShortcut(settings.globalShortcut),
     theme: cleanTheme(settings.theme)
   };
 }
@@ -194,6 +227,7 @@ module.exports = {
   CLAUDE_ASSISTANT_FONT,
   DEFAULT_SETTINGS,
   THEMES,
+  normalizeWindowState,
   normalizeSettings,
   buildStyleVariableMap,
   isAllowedChatGptUrl

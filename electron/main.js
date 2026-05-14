@@ -1,9 +1,10 @@
-const { app, BrowserWindow, Menu, globalShortcut, ipcMain, nativeTheme, shell } = require("electron");
+const { app, BrowserWindow, Menu, globalShortcut, ipcMain, nativeTheme, shell, screen } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const {
   DEFAULT_SETTINGS,
   THEMES,
+  normalizeWindowState,
   normalizeSettings,
   buildStyleVariableMap,
   isAllowedChatGptUrl
@@ -11,15 +12,52 @@ const {
 
 const FONT_PATH = path.join(__dirname, "..", "assets", "fonts", "Newsreader-Variable.ttf");
 const APP_NAME = "AImpostor";
-const GLOBAL_SHORTCUT = "Alt+Space";
 
 let mainWindow = null;
 let settingsWindow = null;
 let insertedCssKey = null;
 let localSerifDataUrl = null;
+let registeredShortcut = null;
+let windowStateTimer = null;
+let styleStatus = {
+  state: "waiting",
+  message: "Waiting for ChatGPT",
+  details: {},
+  updatedAt: null
+};
+let shortcutStatus = {
+  enabled: false,
+  accelerator: DEFAULT_SETTINGS.globalShortcut,
+  registered: false,
+  message: "Global shortcut is disabled",
+  updatedAt: null
+};
 
 function settingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
+}
+
+function windowStatePath() {
+  return path.join(app.getPath("userData"), "window-state.json");
+}
+
+function readWindowState() {
+  try {
+    return normalizeWindowState(JSON.parse(fs.readFileSync(windowStatePath(), "utf8")));
+  } catch {
+    return null;
+  }
+}
+
+function writeWindowState(state) {
+  const normalized = normalizeWindowState(state);
+  if (!normalized) {
+    return null;
+  }
+
+  fs.mkdirSync(app.getPath("userData"), { recursive: true });
+  fs.writeFileSync(windowStatePath(), `${JSON.stringify(normalized, null, 2)}\n`);
+  return normalized;
 }
 
 function readSettings() {
@@ -36,6 +74,60 @@ function writeSettings(settings) {
   fs.mkdirSync(app.getPath("userData"), { recursive: true });
   fs.writeFileSync(settingsPath(), `${JSON.stringify(normalized, null, 2)}\n`);
   return normalized;
+}
+
+function runtimeStatus() {
+  return {
+    styleStatus,
+    shortcutStatus
+  };
+}
+
+function notifyRuntimeStatus() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send("runtime:status", runtimeStatus());
+  }
+}
+
+function setStyleStatus(state, message, details = {}) {
+  styleStatus = {
+    state,
+    message,
+    details,
+    updatedAt: new Date().toISOString()
+  };
+  notifyRuntimeStatus();
+}
+
+function setShortcutStatus(status) {
+  shortcutStatus = {
+    ...status,
+    updatedAt: new Date().toISOString()
+  };
+  notifyRuntimeStatus();
+}
+
+function updateStyleStatusFromDiagnostics(diagnostics, hasCss = true) {
+  if (!diagnostics) {
+    setStyleStatus("waiting", "Waiting for ChatGPT", {});
+    return;
+  }
+
+  if (!hasCss || diagnostics.readyState === "loading") {
+    setStyleStatus("loading", "ChatGPT page is loading", diagnostics);
+    return;
+  }
+
+  const hasExpectedSurface = diagnostics.hasComposer ||
+    diagnostics.hasUserMessage ||
+    diagnostics.hasAssistantMessage;
+
+  if (!hasExpectedSurface) {
+    setStyleStatus("degraded", "ChatGPT selectors are missing", diagnostics);
+    return;
+  }
+
+  setStyleStatus("applied", "Styling applied", diagnostics);
 }
 
 function applyNativeTheme(settings) {
@@ -336,11 +428,12 @@ ${codeCss}
 
 async function applyThemeVariablesToPage(settings) {
   if (!mainWindow || mainWindow.isDestroyed()) {
-    return;
+    setStyleStatus("waiting", "ChatGPT window is not open", {});
+    return null;
   }
 
   const vars = buildStyleVariableMap(settings);
-  await mainWindow.webContents.executeJavaScript(`
+  return mainWindow.webContents.executeJavaScript(`
     (() => {
       const vars = ${JSON.stringify(vars)};
       const root = document.documentElement;
@@ -398,31 +491,104 @@ async function applyThemeVariablesToPage(settings) {
       };
 
       suppressNativeTooltips();
+
+      return {
+        readyState: document.readyState,
+        url: window.location.href,
+        hasComposer: Boolean(document.querySelector('textarea, [contenteditable="true"], [data-testid*="composer"]')),
+        hasUserMessage: Boolean(document.querySelector('[data-message-author-role="user"]')),
+        hasAssistantMessage: Boolean(document.querySelector('[data-message-author-role="assistant"] .markdown, [data-message-author-role="assistant"] .prose')),
+        hasThemeVariable: root.style.getPropertyValue("--chatgpt-theme-page") !== ""
+      };
     })();
-  `).catch(() => {});
+  `);
 }
 
 async function applyTypography() {
   if (!mainWindow || mainWindow.isDestroyed()) {
+    setStyleStatus("waiting", "ChatGPT window is not open", {});
     return;
   }
 
   const settings = readSettings();
 
-  if (insertedCssKey) {
-    await mainWindow.webContents.removeInsertedCSS(insertedCssKey).catch(() => {});
-    insertedCssKey = null;
-  }
+  try {
+    if (insertedCssKey) {
+      await mainWindow.webContents.removeInsertedCSS(insertedCssKey).catch(() => {});
+      insertedCssKey = null;
+    }
 
-  insertedCssKey = await mainWindow.webContents.insertCSS(buildCss(settings), {
-    cssOrigin: "user"
-  });
-  await applyThemeVariablesToPage(settings);
+    insertedCssKey = await mainWindow.webContents.insertCSS(buildCss(settings), {
+      cssOrigin: "user"
+    });
+    updateStyleStatusFromDiagnostics(await applyThemeVariablesToPage(settings), true);
+  } catch (error) {
+    console.error("Could not apply ChatGPT styling", error);
+    setStyleStatus("error", "Could not apply ChatGPT styling", {
+      message: error.message
+    });
+  }
+}
+
+async function reapplyThemeVariables() {
+  try {
+    updateStyleStatusFromDiagnostics(
+      await applyThemeVariablesToPage(readSettings()),
+      Boolean(insertedCssKey)
+    );
+  } catch (error) {
+    console.error("Could not refresh ChatGPT styling status", error);
+    setStyleStatus("error", "Could not refresh styling status", {
+      message: error.message
+    });
+  }
 }
 
 function scheduleThemeReapply() {
-  setTimeout(() => applyThemeVariablesToPage(readSettings()), 300);
-  setTimeout(() => applyThemeVariablesToPage(readSettings()), 1200);
+  setTimeout(reapplyThemeVariables, 300);
+  setTimeout(reapplyThemeVariables, 1200);
+}
+
+function captureMainWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return null;
+  }
+
+  const bounds = typeof mainWindow.getNormalBounds === "function"
+    ? mainWindow.getNormalBounds()
+    : mainWindow.getBounds();
+
+  return {
+    bounds,
+    isMaximized: mainWindow.isMaximized(),
+    isFullScreen: mainWindow.isFullScreen()
+  };
+}
+
+function saveMainWindowStateNow() {
+  const state = captureMainWindowState();
+  if (state) {
+    writeWindowState(state);
+  }
+}
+
+function scheduleMainWindowStateSave() {
+  clearTimeout(windowStateTimer);
+  windowStateTimer = setTimeout(saveMainWindowStateNow, 300);
+}
+
+function isWindowBoundsVisible(bounds) {
+  if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y)) {
+    return true;
+  }
+
+  return screen.getAllDisplays().some((display) => {
+    const area = display.workArea;
+    return bounds.x < area.x + area.width &&
+      bounds.x + bounds.width > area.x &&
+      bounds.y < area.y + area.height &&
+      bounds.y + bounds.height > area.y;
+  });
 }
 
 function createMainWindow() {
@@ -432,10 +598,17 @@ function createMainWindow() {
   }
 
   const theme = THEMES[readSettings().theme];
+  const windowState = readWindowState();
+  const savedBounds = windowState?.bounds || {};
+  const bounds = isWindowBoundsVisible(savedBounds)
+    ? savedBounds
+    : { width: savedBounds.width, height: savedBounds.height };
 
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 900,
+    width: bounds.width || 1200,
+    height: bounds.height || 900,
+    x: bounds.x,
+    y: bounds.y,
     minWidth: 760,
     minHeight: 560,
     title: APP_NAME,
@@ -446,6 +619,14 @@ function createMainWindow() {
       sandbox: true
     }
   });
+
+  if (windowState?.isMaximized) {
+    mainWindow.maximize();
+  }
+
+  if (windowState?.isFullScreen) {
+    mainWindow.setFullScreen(true);
+  }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedChatGptUrl(url)) {
@@ -464,9 +645,18 @@ function createMainWindow() {
     applyTypography();
     scheduleThemeReapply();
   });
+  for (const eventName of ["resize", "move", "maximize", "unmaximize", "enter-full-screen", "leave-full-screen"]) {
+    mainWindow.on(eventName, scheduleMainWindowStateSave);
+  }
+  mainWindow.on("close", () => {
+    clearTimeout(windowStateTimer);
+    saveMainWindowStateNow();
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
+    setStyleStatus("waiting", "ChatGPT window is not open", {});
   });
+  setStyleStatus("loading", "ChatGPT page is loading", {});
   mainWindow.loadURL("https://chatgpt.com/");
 }
 
@@ -489,16 +679,52 @@ function focusMainWindow() {
 
 function applyGlobalShortcut(settings) {
   const normalized = normalizeSettings(settings);
-  globalShortcut.unregister(GLOBAL_SHORTCUT);
+  const accelerator = normalized.globalShortcut;
+
+  if (registeredShortcut) {
+    globalShortcut.unregister(registeredShortcut);
+    registeredShortcut = null;
+  }
 
   if (!normalized.globalShortcutEnabled) {
+    setShortcutStatus({
+      enabled: false,
+      accelerator,
+      registered: false,
+      message: "Global shortcut is disabled"
+    });
     return;
   }
 
-  const registered = globalShortcut.register(GLOBAL_SHORTCUT, focusMainWindow);
+  try {
+    const registered = globalShortcut.register(accelerator, focusMainWindow);
 
-  if (!registered) {
-    console.warn(`Could not register global shortcut ${GLOBAL_SHORTCUT}`);
+    if (registered) {
+      registeredShortcut = accelerator;
+      setShortcutStatus({
+        enabled: true,
+        accelerator,
+        registered: true,
+        message: `Registered ${accelerator}`
+      });
+      return;
+    }
+
+    console.warn(`Could not register global shortcut ${accelerator}`);
+    setShortcutStatus({
+      enabled: true,
+      accelerator,
+      registered: false,
+      message: `Could not register ${accelerator}`
+    });
+  } catch (error) {
+    console.warn(`Could not register global shortcut ${accelerator}`, error);
+    setShortcutStatus({
+      enabled: true,
+      accelerator,
+      registered: false,
+      message: `Invalid shortcut: ${accelerator}`
+    });
   }
 }
 
@@ -512,7 +738,7 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 460,
-    height: 690,
+    height: 760,
     resizable: false,
     title: `${APP_NAME} Settings`,
     parent: mainWindow || undefined,
@@ -524,6 +750,7 @@ function createSettingsWindow() {
     }
   });
 
+  settingsWindow.webContents.on("did-finish-load", notifyRuntimeStatus);
   settingsWindow.loadFile(path.join(__dirname, "settings.html"));
   settingsWindow.on("closed", () => {
     settingsWindow = null;
@@ -611,6 +838,8 @@ app.on("window-all-closed", () => {
 });
 
 ipcMain.handle("settings:get", () => readSettings());
+
+ipcMain.handle("runtime:get-status", () => runtimeStatus());
 
 function saveSettingsPatch(patch) {
   const saved = writeSettings({ ...readSettings(), ...patch });

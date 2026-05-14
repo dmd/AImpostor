@@ -12,6 +12,17 @@
         <h1>AImpostor</h1>
       </header>
 
+      <section class="status-panel" aria-live="polite">
+        <div class="status-row">
+          <span>ChatGPT styling</span>
+          <output id="styleStatus">Waiting for ChatGPT</output>
+        </div>
+        <div class="status-row">
+          <span>Shortcut</span>
+          <output id="shortcutStatus">Checking shortcut</output>
+        </div>
+      </section>
+
       <label class="field">
         <span>Theme</span>
         <select id="theme">
@@ -91,10 +102,21 @@
         <span>Apply to code blocks</span>
       </label>
 
-      <label class="check-row">
-        <input id="globalShortcutEnabled" type="checkbox">
-        <span>Enable Option-Space global shortcut</span>
-      </label>
+      <section class="font-group shortcut-group">
+        <h2>Shortcut</h2>
+        <label class="check-row">
+          <input id="globalShortcutEnabled" type="checkbox">
+          <span>Enable global shortcut</span>
+        </label>
+
+        <label class="field">
+          <span>Keys</span>
+          <div class="shortcut-row">
+            <input id="globalShortcut" type="text" spellcheck="false" readonly>
+            <button id="recordShortcut" class="secondary small" type="button">Record</button>
+          </div>
+        </label>
+      </section>
 
       <div class="actions">
         <button id="closeSettings" type="button">Close</button>

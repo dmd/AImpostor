@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   DEFAULT_SETTINGS,
   normalizeSettings,
+  normalizeWindowState,
   buildStyleVariableMap,
   isAllowedChatGptUrl
 } = require("../electron/settings-shared");
@@ -20,6 +21,7 @@ test("normalizeSettings keeps legacy fontSize values and clamps ranges", () => {
   assert.equal(settings.lineHeight, 1.1);
   assert.equal(settings.theme, DEFAULT_SETTINGS.theme);
   assert.equal(settings.globalShortcutEnabled, false);
+  assert.equal(settings.globalShortcut, DEFAULT_SETTINGS.globalShortcut);
 });
 
 test("normalizeSettings strips CSS-breaking font-family characters", () => {
@@ -44,6 +46,37 @@ test("buildStyleVariableMap derives font and theme values from one settings obje
   assert.equal(vars["--chatgpt-font-controls-line-height"], 1.9);
   assert.equal(vars["--chatgpt-font-controls-assistant-weight"], 360);
   assert.equal(vars["--chatgpt-theme-page"], "#1f1f1e");
+});
+
+test("normalizeSettings cleans custom global shortcut strings", () => {
+  const settings = normalizeSettings({
+    globalShortcut: " Command+Alt+Space; "
+  });
+
+  assert.equal(settings.globalShortcut, "Command+Alt+Space");
+});
+
+test("normalizeWindowState clamps bounds and preserves window flags", () => {
+  const state = normalizeWindowState({
+    bounds: {
+      x: "10",
+      y: 20,
+      width: 100,
+      height: 9999
+    },
+    isMaximized: true
+  });
+
+  assert.deepEqual(state, {
+    bounds: {
+      width: 760,
+      height: 2400,
+      x: 10,
+      y: 20
+    },
+    isMaximized: true,
+    isFullScreen: false
+  });
 });
 
 test("isAllowedChatGptUrl only allows exact ChatGPT hostnames over HTTPS", () => {

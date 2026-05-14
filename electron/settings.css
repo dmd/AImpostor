@@ -36,7 +36,7 @@ body {
 
 .panel {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 18px;
 }
 
@@ -55,7 +55,7 @@ h1 {
 
 .font-group {
   display: grid;
-  gap: 10px;
+  gap: 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
@@ -63,6 +63,54 @@ h1 {
 
 .assistant-group {
   background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.shortcut-group {
+  padding: 10px 12px;
+}
+
+.status-panel {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: color-mix(in srgb, var(--panel) 82%, var(--bg));
+}
+
+.status-row {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.status-row span,
+.status-row output {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.status-row span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.status-row output {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.status-row output[data-state="applied"],
+.status-row output[data-registered="true"] {
+  color: #2f7d4f;
+}
+
+.status-row output[data-state="degraded"],
+.status-row output[data-state="error"],
+.status-row output[data-enabled="true"][data-registered="false"] {
+  color: var(--accent-strong);
 }
 
 h2 {
@@ -103,10 +151,22 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+input.recording {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
 .range-row {
   display: grid;
   grid-template-columns: 1fr 72px;
   gap: 10px;
+  align-items: center;
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
   align-items: center;
 }
 
@@ -157,4 +217,9 @@ button.small {
   align-self: center;
   font-size: 12px;
   padding: 4px 9px;
+}
+
+button.recording {
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
