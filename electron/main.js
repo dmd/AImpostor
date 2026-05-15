@@ -12,7 +12,7 @@ const {
 
 const FONT_PATH = path.join(__dirname, "..", "assets", "fonts", "Newsreader-Variable.ttf");
 const APP_NAME = "AImpostor";
-const APP_VERSION = "2026.05.14.05";
+const APP_VERSION = "2026.05.14.06";
 
 let mainWindow = null;
 let settingsWindow = null;
