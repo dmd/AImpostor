@@ -1,6 +1,6 @@
 {
   "name": "aimpostor",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Standalone macOS ChatGPT app with separate user and assistant typography controls.",
   "main": "electron/main.js",
   "private": true,
@@ -9,7 +9,7 @@
     "check": "for f in electron/*.js test/*.js; do node --check \"$f\"; done",
     "test": "node --test test/*.test.js",
     "verify": "npm run check && npm test",
-    "package:mac": "electron-packager . \"AImpostor\" --platform=darwin --arch=arm64 --icon=assets/icon --out=dist --overwrite --ignore='^/dist($|/)' --ignore='^/debug($|/)' --ignore='^/app($|/)'"
+    "package:mac": "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer electron-packager . \"AImpostor\" --platform=darwin --arch=arm64 --icon=assets/icon.icon --out=dist --overwrite --ignore='^/dist($|/)' --ignore='^/debug($|/)' --ignore='^/app($|/)'"
   },
   "devDependencies": {
     "@electron/packager": "^18.4.4",

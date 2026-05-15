@@ -12,7 +12,6 @@ const {
 
 const FONT_PATH = path.join(__dirname, "..", "assets", "fonts", "Newsreader-Variable.ttf");
 const APP_NAME = "AImpostor";
-const APP_VERSION = "2026.05.14.06";
 
 let mainWindow = null;
 let settingsWindow = null;
@@ -759,6 +758,8 @@ function createSettingsWindow() {
 }
 
 function showAboutWindow() {
+  const appVersion = app.getVersion();
+
   if (process.platform === "darwin") {
     app.showAboutPanel();
     return;
@@ -768,7 +769,7 @@ function showAboutWindow() {
     type: "info",
     title: `About ${APP_NAME}`,
     message: APP_NAME,
-    detail: `Version ${APP_VERSION}`,
+    detail: `Version ${appVersion}`,
     buttons: ["OK"]
   });
 }
@@ -830,8 +831,8 @@ function buildMenu() {
 app.setName(APP_NAME);
 app.setAboutPanelOptions({
   applicationName: APP_NAME,
-  applicationVersion: APP_VERSION,
-  version: APP_VERSION
+  applicationVersion: app.getVersion(),
+  version: app.getVersion()
 });
 
 app.whenReady().then(() => {
