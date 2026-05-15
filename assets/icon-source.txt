@@ -1,7 +1,0 @@
-ChatGPT logo source:
-https://commons.wikimedia.org/wiki/File:ChatGPT-Logo.svg
-Original file:
-https://upload.wikimedia.org/wikipedia/commons/e/ef/ChatGPT-Logo.svg
-
-The app icon places the white SVG path on an Anthropic clay #d97757 squircle background centered in a 1024x1024 canvas with 96px transparent padding for legacy macOS icon sizing.
-Wikimedia Commons marks the SVG as public domain due to simple geometry and notes possible trademark restrictions.
